@@ -1,0 +1,20 @@
+{
+  "name": "점심메뉴추천",
+  "short_name": "LunchWheel",
+  "description": "점심 메뉴 고민을 룰렛 한 번으로 해결!",
+  "lang": "ko",
+  "start_url": "/lunch-sj/",
+  "scope":   "/lunch-sj/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#0b0f1a",
+  "background_color": "#0b0f1a",
+  "icons": [
+    {
+      "src": "Lunch menu-icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
