@@ -1,0 +1,599 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>점심 메뉴 룰렛</title>
+
+  <!-- GSAP CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
+
+  <style>
+    :root{
+      --bg:#0b0f1a;
+      --panel:#11182a;
+      --line:rgba(255,255,255,.14);
+      --text:rgba(255,255,255,.92);
+      --muted:rgba(255,255,255,.65);
+      --accent:#7c5cff;
+      --accent2:#2ee9a6;
+    }
+
+    *{ box-sizing:border-box; }
+    body{
+      margin:0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Noto Sans KR", "Apple SD Gothic Neo", Arial, sans-serif;
+      background: radial-gradient(1200px 700px at 20% 0%, #1a2455 0%, rgba(26,36,85,0) 60%),
+                  radial-gradient(1000px 600px at 80% 20%, #123a2e 0%, rgba(18,58,46,0) 55%),
+                  var(--bg);
+      color:var(--text);
+      min-height:100vh;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:24px;
+    }
+
+    .app{
+      width:min(980px, 100%);
+      display:grid;
+      grid-template-columns: 1.15fr .85fr;
+      gap:18px;
+    }
+
+    @media (max-width: 860px){
+      .app{ grid-template-columns:1fr; }
+    }
+
+    .card{
+      background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
+      border:1px solid var(--line);
+      border-radius:18px;
+      box-shadow: 0 16px 50px rgba(0,0,0,.45);
+      overflow:hidden;
+    }
+
+    .card-header{
+      padding:16px 18px;
+      border-bottom:1px solid var(--line);
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+    }
+
+    .title{
+      font-size:16px;
+      font-weight:700;
+      letter-spacing:-.2px;
+      display:flex;
+      align-items:center;
+      gap:10px;
+    }
+
+    .badge{
+      font-size:12px;
+      padding:4px 8px;
+      border-radius:999px;
+      border:1px solid var(--line);
+      color:var(--muted);
+    }
+
+    .card-body{ padding:16px 18px; }
+
+    /* Wheel area */
+    .wheel-wrap{
+      position:relative;
+      width:100%;
+      aspect-ratio: 1/1;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:10px;
+    }
+
+    .wheel-stage{
+      position:relative;
+      width:min(520px, 100%);
+      aspect-ratio:1/1;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+    }
+
+    .wheel-shadow{
+      position:absolute;
+      inset:2%;
+      border-radius:50%;
+      background: radial-gradient(circle at 30% 25%, rgba(255,255,255,.18), rgba(255,255,255,.03) 55%, rgba(0,0,0,.65));
+      filter: blur(2px);
+      opacity:.55;
+      z-index:0;
+    }
+
+    svg{
+      width:100%;
+      height:100%;
+      display:block;
+      z-index:1;
+    }
+
+    .pointer{
+      position:absolute;
+      top:-2px;
+      left:50%;
+      transform: translateX(-50%);
+      width:0;
+      height:0;
+      border-left:14px solid transparent;
+      border-right:14px solid transparent;
+      border-bottom:26px solid var(--accent2);
+      filter: drop-shadow(0 10px 18px rgba(0,0,0,.55));
+      z-index:5;
+    }
+
+    .hub{
+      position:absolute;
+      width:20%;
+      aspect-ratio:1/1;
+      border-radius:50%;
+      background: radial-gradient(circle at 30% 30%, rgba(255,255,255,.35), rgba(255,255,255,.06) 55%, rgba(0,0,0,.35));
+      border:1px solid rgba(255,255,255,.18);
+      box-shadow: 0 14px 40px rgba(0,0,0,.55);
+      z-index:4;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-weight:800;
+      color:rgba(255,255,255,.92);
+      letter-spacing:-.3px;
+      pointer-events:none;
+    }
+
+    .result{
+      margin-top:12px;
+      padding:12px 14px;
+      border-radius:14px;
+      border:1px solid var(--line);
+      background: rgba(0,0,0,.20);
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+    }
+
+    .result .label{
+      font-size:12px;
+      color:var(--muted);
+    }
+    .result .value{
+      font-size:16px;
+      font-weight:800;
+      color: #fff;
+      text-shadow: 0 10px 24px rgba(0,0,0,.55);
+      overflow:hidden;
+      text-overflow:ellipsis;
+      white-space:nowrap;
+      max-width: 70%;
+      text-align:right;
+    }
+
+    .btn-row{
+      display:flex;
+      gap:10px;
+      margin-top:14px;
+      flex-wrap:wrap;
+    }
+
+    button{
+      appearance:none;
+      border:none;
+      cursor:pointer;
+      border-radius:14px;
+      padding:12px 14px;
+      font-weight:800;
+      color:white;
+      background: linear-gradient(135deg, var(--accent), #4a8bff);
+      box-shadow: 0 14px 34px rgba(0,0,0,.35);
+      transition: transform .08s ease, filter .15s ease;
+      user-select:none;
+    }
+    button:active{ transform: translateY(1px) scale(.99); }
+    button.secondary{
+      background: rgba(255,255,255,.06);
+      border:1px solid var(--line);
+      box-shadow:none;
+      color:rgba(255,255,255,.88);
+    }
+    button:disabled{
+      opacity:.55;
+      cursor:not-allowed;
+      filter: grayscale(.1);
+    }
+
+    /* Menu editor */
+    .menu-editor{
+      display:flex;
+      flex-direction:column;
+      gap:12px;
+    }
+
+    .input-row{
+      display:flex;
+      gap:10px;
+    }
+
+    input[type="text"]{
+      flex:1;
+      background: rgba(0,0,0,.28);
+      border:1px solid var(--line);
+      border-radius:14px;
+      padding:12px 14px;
+      color:var(--text);
+      outline:none;
+    }
+    input::placeholder{ color: rgba(255,255,255,.38); }
+
+    .chips{
+      display:flex;
+      flex-wrap:wrap;
+      gap:8px;
+    }
+
+    .chip{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding:8px 10px;
+      border-radius:999px;
+      border:1px solid var(--line);
+      background: rgba(0,0,0,.22);
+      font-size:13px;
+      color: rgba(255,255,255,.88);
+    }
+
+    .chip button{
+      padding:0;
+      width:22px;
+      height:22px;
+      border-radius:999px;
+      background: rgba(255,255,255,.10);
+      border:1px solid rgba(255,255,255,.18);
+      box-shadow:none;
+      font-weight:900;
+      line-height:1;
+    }
+
+    .hint{
+      font-size:12px;
+      color: var(--muted);
+      line-height:1.4;
+    }
+
+    /* SVG text styling */
+    .slice-text{
+      font-weight:800;
+      fill: rgba(255,255,255,.92);
+      paint-order: stroke;
+      stroke: rgba(0,0,0,.35);
+      stroke-width: 2.5px;
+      letter-spacing:-.2px;
+      user-select:none;
+    }
+
+    .slice-path{
+      stroke: rgba(255,255,255,.15);
+      stroke-width: 1;
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <!-- Left: Roulette -->
+    <section class="card">
+      <div class="card-header">
+        <div class="title">
+          🍽️ 점심 메뉴 룰렛
+          <span class="badge">GSAP 감속 회전</span>
+        </div>
+        <span class="badge" id="countBadge">0개 메뉴</span>
+      </div>
+
+      <div class="card-body">
+        <div class="wheel-wrap">
+          <div class="wheel-stage">
+            <div class="wheel-shadow"></div>
+            <div class="pointer" aria-hidden="true"></div>
+
+            <svg viewBox="-200 -200 400 400" role="img" aria-label="점심 메뉴 룰렛">
+              <!-- 회전시키는 그룹 -->
+              <g id="wheelGroup"></g>
+
+              <!-- 바깥 테두리 -->
+              <circle cx="0" cy="0" r="190" fill="none" stroke="rgba(255,255,255,.22)" stroke-width="2"></circle>
+            </svg>
+
+            <div class="hub">GO</div>
+          </div>
+        </div>
+
+        <div class="result">
+          <div>
+            <div class="label">선택된 메뉴</div>
+          </div>
+          <div class="value" id="resultText">—</div>
+        </div>
+
+        <div class="btn-row">
+          <button id="spinBtn">룰렛 돌리기</button>
+          <button class="secondary" id="shuffleBtn">색상/순서 섞기</button>
+          <button class="secondary" id="resetBtn">회전 초기화</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Right: Menu list -->
+    <aside class="card">
+      <div class="card-header">
+        <div class="title">🧾 메뉴 설정</div>
+        <span class="badge">추가/삭제 가능</span>
+      </div>
+      <div class="card-body">
+        <div class="menu-editor">
+          <div class="input-row">
+            <input id="menuInput" type="text" placeholder="예) 김치찌개" maxlength="18" />
+            <button class="secondary" id="addBtn">추가</button>
+          </div>
+
+          <div class="chips" id="chips"></div>
+
+          <div class="hint">
+            • 파이 조각 중앙에 메뉴명이 표시됩니다.<br/>
+            • “룰렛 돌리기”를 누르면 여러 바퀴 회전 후 서서히 감속하여 한 메뉴에서 멈춥니다.<br/>
+            • 포인터(위 삼각형)가 가리키는 조각이 최종 선택입니다.
+          </div>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <script>
+    // ===== Utils =====
+    function clamp(n, min, max){ return Math.max(min, Math.min(max, n)); }
+    function degToRad(deg){ return (deg * Math.PI) / 180; }
+
+    // SVG arc path (center 0,0)
+    function wedgePath(r, a0, a1) {
+      // angles in radians, 0 rad = +x, CCW positive
+      const x0 = r * Math.cos(a0), y0 = r * Math.sin(a0);
+      const x1 = r * Math.cos(a1), y1 = r * Math.sin(a1);
+      const largeArc = (a1 - a0) % (Math.PI * 2) > Math.PI ? 1 : 0;
+      return [
+        `M 0 0`,
+        `L ${x0.toFixed(3)} ${y0.toFixed(3)}`,
+        `A ${r} ${r} 0 ${largeArc} 1 ${x1.toFixed(3)} ${y1.toFixed(3)}`,
+        `Z`
+      ].join(" ");
+    }
+
+    function hslColor(i, n) {
+      // 보기 좋은 범위로 hue 분산
+      const hue = (i * (360 / n) + 210) % 360;
+      return `hsl(${hue} 70% 52%)`;
+    }
+
+    // ===== State =====
+    let menus = [
+      "김치찌개", "국밥", "돈까스", "초밥",
+      "비빔밥", "파스타", "샐러드", "라멘"
+    ];
+
+    let currentRotation = 0; // degrees
+    let isSpinning = false;
+
+    const wheelGroup = document.getElementById("wheelGroup");
+    const resultText = document.getElementById("resultText");
+    const countBadge = document.getElementById("countBadge");
+
+    const chipsEl = document.getElementById("chips");
+    const menuInput = document.getElementById("menuInput");
+
+    const spinBtn = document.getElementById("spinBtn");
+    const addBtn = document.getElementById("addBtn");
+    const shuffleBtn = document.getElementById("shuffleBtn");
+    const resetBtn = document.getElementById("resetBtn");
+
+    // ===== Build Wheel =====
+    function rebuildChips(){
+      chipsEl.innerHTML = "";
+      menus.forEach((m, idx) => {
+        const chip = document.createElement("div");
+        chip.className = "chip";
+        chip.innerHTML = `
+          <span>${escapeHtml(m)}</span>
+          <button title="삭제" aria-label="${m} 삭제">×</button>
+        `;
+        chip.querySelector("button").addEventListener("click", () => {
+          menus.splice(idx, 1);
+          if (menus.length < 2) {
+            // 최소 2개는 유지 (룰렛 의미)
+            menus = ["메뉴1", "메뉴2"];
+          }
+          rebuildAll();
+        });
+        chipsEl.appendChild(chip);
+      });
+    }
+
+    function rebuildWheel(){
+      wheelGroup.innerHTML = "";
+      const n = menus.length;
+      countBadge.textContent = `${n}개 메뉴`;
+
+      const r = 185;
+      const sliceAngle = (Math.PI * 2) / n;
+
+      // 포인터는 "위쪽" (svg 좌표에서 -Y 방향 = -90deg)을 가리킵니다.
+      // wheel을 회전시켜 특정 조각의 중앙이 -90deg 위치로 오게 만들 것입니다.
+
+      for (let i = 0; i < n; i++){
+        const a0 = i * sliceAngle;
+        const a1 = (i + 1) * sliceAngle;
+
+        // Path
+        const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        path.setAttribute("d", wedgePath(r, a0, a1));
+        path.setAttribute("fill", hslColor(i, n));
+        path.setAttribute("class", "slice-path");
+
+        // Text position: slice center angle
+        const mid = (a0 + a1) / 2;
+
+        // 중앙 텍스트를 "조각 가운데"에 두기 위해 반지름의 60% 지점에 배치
+        const tx = (r * 0.62) * Math.cos(mid);
+        const ty = (r * 0.62) * Math.sin(mid);
+
+        const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+        text.setAttribute("x", tx.toFixed(2));
+        text.setAttribute("y", ty.toFixed(2));
+        text.setAttribute("text-anchor", "middle");
+        text.setAttribute("dominant-baseline", "middle");
+        text.setAttribute("font-size", String(clamp(26 - n, 12, 18)));
+        text.setAttribute("class", "slice-text");
+
+        // 글자가 회전에 따라 같이 돌아가되, 읽기 쉬우라고 "바깥쪽을 향해" 약간 회전
+        // (원하시면 항상 수평으로 유지하는 방식도 가능합니다)
+        const rotateDeg = (mid * 180 / Math.PI);
+        text.setAttribute("transform", `rotate(${rotateDeg.toFixed(2)} ${tx.toFixed(2)} ${ty.toFixed(2)})`);
+
+        text.textContent = menus[i];
+
+        wheelGroup.appendChild(path);
+        wheelGroup.appendChild(text);
+      }
+
+      // 현재 회전 적용
+      gsap.set(wheelGroup, { rotation: currentRotation, transformOrigin: "50% 50%" });
+    }
+
+    function rebuildAll(){
+      // 회전 중이면 강제로 중지하지 않고 UI만 잠금 해제 방지
+      if (isSpinning) return;
+
+      // 결과 초기화는 메뉴가 변할 때만
+      resultText.textContent = "—";
+      rebuildChips();
+      rebuildWheel();
+    }
+
+    // HTML escape
+    function escapeHtml(str){
+      return str.replace(/[&<>"']/g, m => ({
+        "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+      }[m]));
+    }
+
+    // ===== Spin Logic =====
+    function pickRandomIndex(n){
+      return Math.floor(Math.random() * n);
+    }
+
+    function spin(){
+      const n = menus.length;
+      if (n < 2) return;
+      if (isSpinning) return;
+
+      isSpinning = true;
+      spinBtn.disabled = true;
+      addBtn.disabled = true;
+      shuffleBtn.disabled = true;
+      resetBtn.disabled = true;
+
+      const idx = pickRandomIndex(n);
+
+      // 각 조각 중앙이 포인터(-90deg)에 오도록 목표 회전 계산
+      // 조각 중앙 각도(midAngleDeg)는 0deg = +X, CCW +
+      const sliceDeg = 360 / n;
+      const midAngleDeg = idx * sliceDeg + sliceDeg / 2;
+
+      // 포인터가 가리키는 방향은 -90deg
+      // wheelGroup rotation은 시계방향(+)로도 동작하지만 GSAP rotation은 기본적으로 시계방향(+) 느낌으로 보일 수 있습니다.
+      // SVG 좌표 기준과 시각 기준을 맞추기 위해 아래처럼 "포인터(-90) - 조각중앙(mid)"를 사용.
+      const targetAlign = -90 - midAngleDeg;
+
+      // 현재 회전에서 여러 바퀴 더 돌고(targetAlign에 수렴) 감속
+      const extraSpins = 6 + Math.floor(Math.random() * 4); // 6~9바퀴
+      const targetRotation = currentRotation + extraSpins * 360 + normalizeDelta(targetAlign - currentRotation);
+
+      // 부드러운 감속(서서히 속도 줄어듦)
+      gsap.to(wheelGroup, {
+        rotation: targetRotation,
+        duration: 4.2,
+        ease: "power4.out",
+        onUpdate: () => {
+          currentRotation = gsap.getProperty(wheelGroup, "rotation");
+        },
+        onComplete: () => {
+          currentRotation = gsap.getProperty(wheelGroup, "rotation");
+          isSpinning = false;
+
+          // 결과 표시
+          resultText.textContent = menus[idx];
+
+          // 버튼 복구
+          spinBtn.disabled = false;
+          addBtn.disabled = false;
+          shuffleBtn.disabled = false;
+          resetBtn.disabled = false;
+
+          // 약한 팝 애니메이션
+          gsap.fromTo(resultText, { scale: 0.98, opacity: 0.6 }, { scale: 1, opacity: 1, duration: 0.25, ease: "power2.out" });
+        }
+      });
+    }
+
+    // 회전 각 차이를 -180~+180 범위로 정규화해서 "가장 자연스러운 방향"으로 목표를 맞춥니다.
+    function normalizeDelta(delta){
+      let d = ((delta % 360) + 360) % 360; // 0..359
+      if (d > 180) d -= 360; // -180..180
+      return d;
+    }
+
+    // ===== UI Handlers =====
+    spinBtn.addEventListener("click", spin);
+
+    addBtn.addEventListener("click", () => {
+      if (isSpinning) return;
+      const v = menuInput.value.trim();
+      if (!v) return;
+      menus.push(v);
+      menuInput.value = "";
+      rebuildAll();
+    });
+
+    menuInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") addBtn.click();
+    });
+
+    shuffleBtn.addEventListener("click", () => {
+      if (isSpinning) return;
+      // 순서 섞기
+      for (let i = menus.length - 1; i > 0; i--){
+        const j = Math.floor(Math.random() * (i + 1));
+        [menus[i], menus[j]] = [menus[j], menus[i]];
+      }
+      rebuildAll();
+    });
+
+    resetBtn.addEventListener("click", () => {
+      if (isSpinning) return;
+      currentRotation = 0;
+      gsap.set(wheelGroup, { rotation: 0, transformOrigin: "50% 50%" });
+      resultText.textContent = "—";
+    });
+
+    // ===== Init =====
+    rebuildAll();
+  </script>
+</body>
+</html>
